@@ -20,7 +20,7 @@ function computeOrigin(req: Request) {
     hdr.get("host") ??
     new URL(req.url).host;
 
-  // Fallback extra seguro para Vercel
+  // fallback seguro para ambiente Vercel
   const vercelHost = process.env.VERCEL_URL
     ? `https://${process.env.VERCEL_URL}`
     : null;
@@ -30,7 +30,8 @@ function computeOrigin(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const { plan } = await req.json();
+    // Recebe os dados enviados do frontend
+    const { plan, whatsapp_number } = await req.json();
 
     const origin = computeOrigin(req);
     const successURL = new URL("/success", origin).toString();
@@ -38,8 +39,14 @@ export async function POST(req: Request) {
 
     const price = plan ? priceMap[plan] : undefined;
 
-    // Log útil na Vercel
-    console.log("🔎 Checkout Debug", { plan, price, origin, successURL, cancelURL });
+    console.log("🔎 Checkout Debug", {
+      plan,
+      price,
+      whatsapp_number,
+      origin,
+      successURL,
+      cancelURL,
+    });
 
     if (!plan || !price) {
       return NextResponse.json(
@@ -48,11 +55,21 @@ export async function POST(req: Request) {
       );
     }
 
+    // ✅ Criação da sessão de checkout com metadados
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       line_items: [{ price, quantity: 1 }],
       success_url: `${successURL}?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: cancelURL,
+      metadata: {
+        plan,
+        whatsapp_number: whatsapp_number || "desconhecido",
+      },
+      customer_update: {
+        address: "auto",
+        name: "auto",
+      },
+      customer_creation: "always",
     });
 
     return NextResponse.json({ url: session.url });

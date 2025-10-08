@@ -1,18 +1,32 @@
 import { NextResponse } from "next/server"
-import { sendWhatsApp } from "@/lib/whatsapp360"
 
 export async function GET() {
   try {
-    // número que vai receber a mensagem (coloque o seu DDD + número completo)
-    const numeroTeste = "5561993403786"
+    const numero = "5561993403786"
+    const templateName = "bem_vindo_palpitesia"
 
-    const mensagem = "🚀 Teste de integração Palpites.IA com WhatsApp via 360dialog!"
+    const response = await fetch("https://waba-v2.360dialog.io/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "D360-API-KEY": process.env.WHATSAPP_API_KEY!,
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to: numero,
+        type: "template",
+        template: {
+          name: templateName,
+          language: { code: "pt_BR" }
+        }
+      }),
+    })
 
-    const resposta = await sendWhatsApp(numeroTeste, mensagem)
-
-    return NextResponse.json({ success: true, resposta })
+    const data = await response.json()
+    console.log("🔎 Resposta 360dialog:", data)
+    return NextResponse.json({ success: true, data })
   } catch (error: any) {
-    console.error("Erro no teste WhatsApp:", error)
+    console.error("❌ Erro no teste WhatsApp:", error)
     return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }
 }

@@ -2,61 +2,124 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 
-// 🔑 Configuração do Stripe
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+// ✅ Stripe SDK
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
 
-// 🔑 Configuração do Supabase
+// ✅ Supabase (usa service_role)
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY! // precisa ser a service_role
+  process.env.NEXT_PUBLIC_SUPABASE_URL as string,
+  process.env.SUPABASE_SERVICE_ROLE_KEY as string
 );
 
 export async function POST(req: Request) {
-  const sig = req.headers.get("stripe-signature") as string;
-  const body = await req.text();
+  const signature = req.headers.get("stripe-signature");
+  if (!signature) {
+    return NextResponse.json({ error: "Missing stripe-signature" }, { status: 400 });
+  }
 
+  const rawBody = await req.text();
   let event: Stripe.Event;
 
   try {
-    // 🔐 Valida a assinatura do webhook
     event = stripe.webhooks.constructEvent(
-      body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET!
+      rawBody,
+      signature,
+      process.env.STRIPE_WEBHOOK_SECRET as string
     );
   } catch (err: any) {
-    console.error("❌ Erro ao validar webhook:", err.message);
+    console.error("❌ Falha ao validar assinatura Stripe:", err.message);
     return NextResponse.json({ error: err.message }, { status: 400 });
   }
 
-  // 👉 Trata somente o evento de pagamento concluído
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object as Stripe.Checkout.Session;
+  try {
+    switch (event.type) {
+      // ✅ Novo checkout concluído
+      case "checkout.session.completed": {
+        const session = event.data.object as Stripe.Checkout.Session;
+        const telefone = session.customer_details?.phone ?? null;
+        const plan = (session.metadata as any)?.plan ?? "desconhecido";
+        const desportivo = plan.includes("combo") ? "combo" : "futebol";
 
-    console.log("▶ Evento recebido: checkout.session.completed");
+        const { error } = await supabase.from("subscribers").upsert(
+          {
+            whatsapp_number: telefone,
+            plano: plan,
+            estado: "ativo",
+            desportivo,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "whatsapp_number" }
+        );
+        if (error) throw error;
 
-    try {
-      const { error } = await supabase.from("subscribers").insert([
-        {
-          email: session.customer_details?.email,
-          stripe_customer_id: session.customer as string,
-          stripe_subscription_id: session.subscription as string,
-          status: "active",
-          created_at: new Date().toISOString(),
-        },
-      ]);
-
-      if (error) {
-        console.error("❌ Erro ao salvar no Supabase:", error.message);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        console.log("✅ subscribers upsert OK (checkout.session.completed)", {
+          telefone,
+          plan,
+        });
+        break;
       }
 
-      console.log("✅ Assinatura criada no Supabase:", session.customer_details?.email);
-    } catch (err) {
-      console.error("❌ Erro inesperado:", err);
-      return NextResponse.json({ error: "Erro interno" }, { status: 500 });
-    }
-  }
+      // ✅ Pagamento de renovação
+      case "invoice.payment_succeeded": {
+        const invoice = event.data.object as Stripe.Invoice;
 
-  return NextResponse.json({ received: true }, { status: 200 });
+        // 👇 força o acesso sem erro de tipagem
+        const subId = invoice["subscription"] ? String(invoice["subscription"]) : null;
+
+        if (subId) {
+          const subscription: any = await stripe.subscriptions.retrieve(subId);
+          const plan =
+            subscription.items?.data?.[0]?.price?.nickname ||
+            subscription.items?.data?.[0]?.price?.id ||
+            "desconhecido";
+
+          const desportivo = String(plan).includes("combo") ? "combo" : "futebol";
+
+          const { error } = await supabase
+            .from("subscribers")
+            .update({
+              estado: "ativo",
+              plano: plan,
+              desportivo,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("plano", plan);
+
+          if (error) throw error;
+
+          console.log("🔁 Renovação confirmada (invoice.payment_succeeded)", { plan });
+        }
+        break;
+      }
+
+      // ✅ Cancelamento de assinatura
+      case "customer.subscription.deleted": {
+        const sub = event.data.object as any;
+        const plan =
+          sub.items?.data?.[0]?.price?.nickname ||
+          sub.items?.data?.[0]?.price?.id ||
+          "desconhecido";
+
+        const { error } = await supabase
+          .from("subscribers")
+          .update({
+            estado: "cancelado",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("plano", plan);
+
+        if (error) throw error;
+        console.log("🛑 Assinatura cancelada (customer.subscription.deleted)", { plan });
+        break;
+      }
+
+      default:
+        console.log("ℹ️ Evento ignorado:", event.type);
+    }
+
+    return NextResponse.json({ received: true }, { status: 200 });
+  } catch (err: any) {
+    console.error("⚠️ Erro interno no webhook:", err.message);
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
 }

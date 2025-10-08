@@ -1,45 +1,66 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 
 export default function Home() {
   const [nome, setNome] = useState("")
   const [email, setEmail] = useState("")
   const [telefone, setTelefone] = useState("")
   const [loading, setLoading] = useState(false)
+  const [pulse, setPulse] = useState(false)
+  const [shake, setShake] = useState(false)
+
+  const planosRef = useRef<HTMLDivElement | null>(null)
+
+  // Pulso + fade suave a cada 3 segundos
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPulse((prev) => !prev)
+    }, 3000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Vibração curta quando o usuário termina de digitar o WhatsApp
+  useEffect(() => {
+    if (telefone.length >= 10) {
+      setShake(true)
+      const timer = setTimeout(() => setShake(false), 500) // 0.5s de shake
+      return () => clearTimeout(timer)
+    }
+  }, [telefone])
 
   async function handleCheckout(plan: string) {
     try {
       setLoading(true)
 
-      // 1. Salva o lead no Supabase via API
-      const resLead = await fetch("/api/leads", {
+      await fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ nome, email, telefone }),
       })
 
-      if (!resLead.ok) throw new Error("Erro ao salvar lead")
-
-      // 2. Só depois abre o checkout no Stripe
       const resCheckout = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify({
+          plan,
+          whatsapp_number: telefone,
+        }),
       })
 
       const data = await resCheckout.json()
-      if (data.url) {
-        window.location.href = data.url
-      } else {
-        alert("Erro ao redirecionar para o checkout")
-      }
+      if (data.url) window.location.href = data.url
+      else alert("Erro ao redirecionar para o checkout")
     } catch (error) {
       console.error("Erro:", error)
       alert("Erro ao processar assinatura")
     } finally {
       setLoading(false)
     }
+  }
+
+  function scrollToPlanos() {
+    planosRef.current?.scrollIntoView({ behavior: "smooth" })
   }
 
   return (
@@ -75,12 +96,34 @@ export default function Home() {
             className="w-full p-3 border rounded-lg"
             required
           />
+
+          {/* Texto dinâmico e botão animado */}
+          <div className="pt-4 text-center">
+            <p className="text-sm text-gray-600 mb-3">
+              {nome
+                ? `Perfeito, ${nome.split(" ")[0]}! Agora escolha seu plano 👇`
+                : "Preencha seus dados e veja qual plano combina mais com você 👇"}
+            </p>
+            <button
+              type="button"
+              onClick={scrollToPlanos}
+              className={`bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-full shadow-md transition duration-500 ease-in-out ${
+                pulse ? "scale-105 opacity-90 shadow-lg" : "scale-100 opacity-100"
+              } ${shake ? "animate-shake" : ""}`}
+            >
+              Quero escolher meu plano 🔥
+            </button>
+          </div>
         </form>
       </section>
 
       {/* Planos */}
-      <section className="py-16 px-6 max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {/* Futebol Mensal */}
+      <section
+        ref={planosRef}
+        id="planos"
+        className="py-16 px-6 max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+      >
+        {/* Futebol */}
         <div className="p-8 border rounded-2xl shadow-lg bg-white text-center">
           <h2 className="text-2xl font-bold mb-6 text-gray-800">⚽ Futebol</h2>
           <button
@@ -106,9 +149,11 @@ export default function Home() {
           </button>
         </div>
 
-        {/* Combo Mensal/Trimestral/Anual */}
+        {/* Combo */}
         <div className="p-8 border rounded-2xl shadow-lg bg-white text-center">
-          <h2 className="text-2xl font-bold mb-6 text-gray-800">⚽🏀 Futebol + Basquete</h2>
+          <h2 className="text-2xl font-bold mb-6 text-gray-800">
+            ⚽🏀 Futebol + Basquete
+          </h2>
           <button
             onClick={() => handleCheckout("combo_monthly")}
             disabled={loading}
@@ -135,7 +180,9 @@ export default function Home() {
 
       {/* Rodapé */}
       <footer className="bg-gray-900 text-gray-400 text-center py-6 mt-16 text-sm">
-        <p className="mb-2">⚠️ Uso exclusivo para maiores de <strong>18 anos</strong>.</p>
+        <p className="mb-2">
+          ⚠️ Uso exclusivo para maiores de <strong>18 anos</strong>.
+        </p>
         <p className="mb-2">
           Lembre-se: sempre utilize sua <strong>gestão de banca</strong>.
         </p>
@@ -144,6 +191,18 @@ export default function Home() {
           responsabilidade.
         </p>
       </footer>
+
+      {/* Animação personalizada para o shake */}
+      <style jsx>{`
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          20%, 60% { transform: translateX(-5px); }
+          40%, 80% { transform: translateX(5px); }
+        }
+        .animate-shake {
+          animation: shake 0.5s ease-in-out;
+        }
+      `}</style>
     </main>
   )
 }
