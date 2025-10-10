@@ -2,124 +2,104 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 
-// ✅ Stripe SDK
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
+  apiVersion: "2025-09-30.clover",
+});
 
-// ✅ Supabase (usa service_role)
+const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET as string;
+
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL as string,
-  process.env.SUPABASE_SERVICE_ROLE_KEY as string
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
 export async function POST(req: Request) {
-  const signature = req.headers.get("stripe-signature");
-  if (!signature) {
-    return NextResponse.json({ error: "Missing stripe-signature" }, { status: 400 });
+  const sig = req.headers.get("stripe-signature");
+
+  if (!sig || !endpointSecret) {
+    console.error("🚨 Falha: assinatura Stripe ou webhook secret ausente");
+    return NextResponse.json({ error: "Assinatura inválida" }, { status: 400 });
   }
 
-  const rawBody = await req.text();
   let event: Stripe.Event;
 
   try {
-    event = stripe.webhooks.constructEvent(
-      rawBody,
-      signature,
-      process.env.STRIPE_WEBHOOK_SECRET as string
-    );
+    const body = await req.text();
+    event = stripe.webhooks.constructEvent(body, sig, endpointSecret);
   } catch (err: any) {
-    console.error("❌ Falha ao validar assinatura Stripe:", err.message);
-    return NextResponse.json({ error: err.message }, { status: 400 });
+    console.error("🚫 Erro ao verificar webhook Stripe:", err.message);
+    return NextResponse.json({ error: "Webhook inválido" }, { status: 400 });
   }
 
   try {
     switch (event.type) {
-      // ✅ Novo checkout concluído
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
-        const telefone = session.customer_details?.phone ?? null;
-        const plan = (session.metadata as any)?.plan ?? "desconhecido";
-        const desportivo = plan.includes("combo") ? "combo" : "futebol";
+        const metadata = session.metadata || {};
 
-        const { error } = await supabase.from("subscribers").upsert(
-          {
-            whatsapp_number: telefone,
-            plano: plan,
-            estado: "ativo",
-            desportivo,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "whatsapp_number" }
-        );
-        if (error) throw error;
+        const nome = metadata.nome || "Não informado";
+        const email =
+          metadata.email ||
+          session.customer_email ||
+          "nao_informado@palpitesia.com.br";
+        const telefone = metadata.telefone || "desconhecido";
+        const plano = metadata.plan || "desconhecido";
 
         console.log("✅ subscribers upsert OK (checkout.session.completed)", {
+          nome,
+          email,
           telefone,
-          plan,
+          plano,
         });
-        break;
-      }
-
-      // ✅ Pagamento de renovação
-      case "invoice.payment_succeeded": {
-        const invoice = event.data.object as Stripe.Invoice;
-
-        // 👇 força o acesso sem erro de tipagem
-        const subId = invoice["subscription"] ? String(invoice["subscription"]) : null;
-
-        if (subId) {
-          const subscription: any = await stripe.subscriptions.retrieve(subId);
-          const plan =
-            subscription.items?.data?.[0]?.price?.nickname ||
-            subscription.items?.data?.[0]?.price?.id ||
-            "desconhecido";
-
-          const desportivo = String(plan).includes("combo") ? "combo" : "futebol";
-
-          const { error } = await supabase
-            .from("subscribers")
-            .update({
-              estado: "ativo",
-              plano: plan,
-              desportivo,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("plano", plan);
-
-          if (error) throw error;
-
-          console.log("🔁 Renovação confirmada (invoice.payment_succeeded)", { plan });
-        }
-        break;
-      }
-
-      // ✅ Cancelamento de assinatura
-      case "customer.subscription.deleted": {
-        const sub = event.data.object as any;
-        const plan =
-          sub.items?.data?.[0]?.price?.nickname ||
-          sub.items?.data?.[0]?.price?.id ||
-          "desconhecido";
 
         const { error } = await supabase
           .from("subscribers")
-          .update({
-            estado: "cancelado",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("plano", plan);
+          .upsert(
+            [
+              {
+                nome,
+                email,
+                telefone,
+                plano,
+                estado: "ativo",
+              },
+            ],
+            { onConflict: "email" }
+          );
 
-        if (error) throw error;
-        console.log("🛑 Assinatura cancelada (customer.subscription.deleted)", { plan });
+        if (error) {
+          console.error("❌ Erro ao salvar no Supabase:", error.message);
+        }
+
+        break;
+      }
+
+      case "customer.subscription.deleted": {
+        const subscription = event.data.object as Stripe.Subscription;
+
+        // ✅ correção segura
+        const email =
+          (subscription as any)?.customer_email ||
+          (subscription as any)?.metadata?.email ||
+          "nao_informado@palpitesia.com.br";
+
+        console.log("⚠️ Assinatura cancelada:", email);
+
+        await supabase
+          .from("subscribers")
+          .update({ estado: "cancelado" })
+          .eq("email", email);
+
         break;
       }
 
       default:
-        console.log("ℹ️ Evento ignorado:", event.type);
+        console.log(`ℹ️ Evento ignorado: ${event.type}`);
     }
 
-    return NextResponse.json({ received: true }, { status: 200 });
+    return NextResponse.json({ received: true });
   } catch (err: any) {
-    console.error("⚠️ Erro interno no webhook:", err.message);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error("❌ Erro interno no webhook:", err.message);
+    return NextResponse.json({ error: "Erro interno no webhook" }, { status: 500 });
   }
 }
