@@ -16,13 +16,11 @@ export default function Home() {
   const planosRef = useRef<HTMLDivElement | null>(null);
   const leadJaSalvo = useRef(false);
 
-  // 🔁 Pulso suave
   useEffect(() => {
     const interval = setInterval(() => setPulse((p) => !p), 3000);
     return () => clearInterval(interval);
   }, []);
 
-  // 💫 Vibração curta ao digitar telefone
   useEffect(() => {
     if (telefone.length >= 10) {
       setShake(true);
@@ -31,7 +29,6 @@ export default function Home() {
     }
   }, [telefone]);
 
-  // 💾 Auto-salvar lead quando campos estão completos
   useEffect(() => {
     if (leadJaSalvo.current) return;
     if (nome && email && telefone.length >= 10) {
@@ -40,7 +37,6 @@ export default function Home() {
     }
   }, [nome, email, telefone]);
 
-  // 💾 Salva lead
   async function salvarLead(silencioso = false) {
     try {
       const res = await fetch("/api/leads", {
@@ -62,7 +58,6 @@ export default function Home() {
     }
   }
 
-  // 🔽 Scroll até planos
   async function scrollToPlanos() {
     setBotaoClicado(true);
     setTimeout(() => setBotaoClicado(false), 300);
@@ -84,7 +79,6 @@ export default function Home() {
     }, 800);
   }
 
-  // ⚽🏀 Checkout
   async function handleCheckout(plan: string) {
     if (!nome || !email || !telefone) {
       alert("Preencha seu nome, e-mail e WhatsApp antes de escolher um plano.");
@@ -164,7 +158,6 @@ export default function Home() {
             required
           />
 
-          {/* Botão animado */}
           <div className="pt-4 text-center">
             <button
               type="button"
@@ -256,11 +249,34 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ⚠️ Rodapé */}
-      <footer className="bg-gray-900 text-gray-400 text-center py-6 mt-16 text-sm">
+      {/* ⚠️ Rodapé atualizado */}
+      <footer className="bg-gray-900 text-gray-400 text-center py-8 mt-16 text-sm">
         <p>⚠️ Uso exclusivo para maiores de <strong>18 anos</strong>.</p>
         <p>Lembre-se: sempre utilize sua <strong>gestão de banca</strong>.</p>
         <p>Os palpites fornecidos não garantem ganhos financeiros. Aposte com responsabilidade.</p>
+
+        <div className="mt-6 space-y-3">
+          {/* WhatsApp com mensagem automática */}
+          <a
+            href="https://wa.me/556195082702?text=Ol%C3%A1!%20Quero%20suporte%20sobre%20minha%20assinatura%20👋"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white py-2 px-5 rounded-lg font-medium transition-transform hover:scale-105"
+          >
+            💬 Fale conosco no WhatsApp
+          </a>
+
+          {/* E-mail secundário */}
+          <p>
+            Ou envie um e-mail para{" "}
+            <a
+              href="mailto:contato@palpitesia.com.br"
+              className="text-green-400 underline"
+            >
+              contato@palpitesia.com.br
+            </a>
+          </p>
+        </div>
       </footer>
 
       {/* ✨ Animações */}
