@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
+const stripeSecret = process.env.STRIPE_SECRET_KEY || "";
+if (!stripeSecret) console.error("🚨 STRIPE_SECRET_KEY ausente no ambiente!");
+
+const stripe = new Stripe(stripeSecret, {
   apiVersion: "2025-09-30.clover",
 });
 
-const priceMap: Record<string, string | undefined> = {
+const priceMap = {
   football_monthly: process.env.STRIPE_PRICE_FOOTBALL_MONTHLY,
   football_quarterly: process.env.STRIPE_PRICE_FOOTBALL_QUARTERLY,
   football_yearly: process.env.STRIPE_PRICE_FOOTBALL_YEARLY,
@@ -14,14 +17,11 @@ const priceMap: Record<string, string | undefined> = {
   combo_yearly: process.env.STRIPE_PRICE_COMBO_YEARLY,
 };
 
-// 🔍 Detecta o ambiente atual (local ou Vercel)
-function computeOrigin(req: Request) {
+function computeOrigin(req) {
   const hdr = req.headers;
   const proto = hdr.get("x-forwarded-proto") ?? "https";
   const host =
-    hdr.get("x-forwarded-host") ??
-    hdr.get("host") ??
-    new URL(req.url).host;
+    hdr.get("x-forwarded-host") ?? hdr.get("host") ?? new URL(req.url).host;
 
   const vercelHost = process.env.VERCEL_URL
     ? `https://${process.env.VERCEL_URL}`
@@ -30,16 +30,18 @@ function computeOrigin(req: Request) {
   return vercelHost || `${proto}://${host}`;
 }
 
-export async function POST(req: Request) {
+function limparDados(texto = "") {
+  return texto.replace(/[^\d]+/g, "");
+}
+
+export async function POST(req) {
   try {
     const body = await req.json();
+    const { plan, nome_cliente, telefone, email_cliente, cpf } = body;
 
-    // 🧠 Captura dados recebidos do frontend
-    const { plan, nome_cliente, telefone, email_cliente } = body;
-
-    // 🔒 Valores padrão seguros
     const nomeFinal = nome_cliente?.trim() || "Não informado";
-    const telefoneFinal = telefone?.trim() || "desconhecido";
+    const telefoneFinal = limparDados(telefone || "");
+    const cpfFinal = limparDados(cpf || "");
     const emailFinal =
       email_cliente?.trim() && email_cliente.includes("@")
         ? email_cliente
@@ -51,15 +53,6 @@ export async function POST(req: Request) {
 
     const price = plan ? priceMap[plan] : undefined;
 
-    console.log("🔎 Checkout Debug", {
-      plan,
-      price,
-      nome_cliente: nomeFinal,
-      email_cliente: emailFinal,
-      telefone: telefoneFinal,
-      origin,
-    });
-
     if (!plan || !price) {
       return NextResponse.json(
         { error: "Plano inválido ou não configurado" },
@@ -67,30 +60,37 @@ export async function POST(req: Request) {
       );
     }
 
-    // 🧾 Cria a sessão de checkout no Stripe com e-mail já pré-preenchido
+    // ✅ Apenas cartão + boleto habilitados
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
+      payment_method_types: ["card", "boleto"],
+
       line_items: [{ price, quantity: 1 }],
       success_url: `${successURL}?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: cancelURL,
 
-      // 📧 Preenche automaticamente o e-mail no Stripe
       customer_email:
         emailFinal !== "nao_informado@palpitesia.com.br"
           ? emailFinal
           : undefined,
 
       metadata: {
-        nome_cliente: nomeFinal,
-        email_cliente: emailFinal,
+        nome: nomeFinal,
+        email: emailFinal,
         telefone: telefoneFinal,
+        cpf: cpfFinal,
         plan,
+      },
+
+      // 🧾 Boleto expira em 3 dias
+      payment_method_options: {
+        boleto: { expires_after_days: 3 },
       },
     });
 
     console.log("✅ Sessão Stripe criada:", session.id);
     return NextResponse.json({ url: session.url });
-  } catch (err: any) {
+  } catch (err) {
     console.error("❌ Erro no checkout:", err);
     return NextResponse.json(
       { error: err?.message || "Erro interno no servidor" },
@@ -98,3 +98,4 @@ export async function POST(req: Request) {
     );
   }
 }
+
