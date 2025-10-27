@@ -11,16 +11,16 @@ export default function Home() {
   const [cpf, setCpf] = useState("");
   const [cpfConfirm, setCpfConfirm] = useState("");
   const [loading, setLoading] = useState(false);
-  const [loadingCheckout, setLoadingCheckout] = useState<string | null>(null);
+  const [loadingCheckout, setLoadingCheckout] = useState(null);
   const [pulse, setPulse] = useState(false);
   const [shake, setShake] = useState(false);
   const [leadSalvo, setLeadSalvo] = useState(false);
   const [botaoClicado, setBotaoClicado] = useState(false);
-  const planosRef = useRef<HTMLDivElement | null>(null);
+  const planosRef = useRef(null);
   const leadJaSalvo = useRef(false);
 
   // ✅ Validação CPF
-  function validarCPF(cpf: string) {
+  function validarCPF(cpf) {
     cpf = cpf.replace(/[^\d]+/g, "");
     if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false;
     let soma = 0;
@@ -37,7 +37,7 @@ export default function Home() {
   }
 
   // ✅ Máscaras
-  const formatarCPF = (valor: string) =>
+  const formatarCPF = (valor) =>
     valor
       .replace(/\D/g, "")
       .replace(/(\d{3})(\d)/, "$1.$2")
@@ -45,7 +45,7 @@ export default function Home() {
       .replace(/(\d{3})(\d{1,2})$/, "$1-$2")
       .slice(0, 14);
 
-  const formatarTelefone = (valor: string) =>
+  const formatarTelefone = (valor) =>
     valor
       .replace(/\D/g, "")
       .replace(/^(\d{2})(\d)/g, "$1 $2")
@@ -53,7 +53,7 @@ export default function Home() {
       .slice(0, 13);
 
   // 💫 Animações
-  const scrollToEl = (el: HTMLElement | null) => {
+  const scrollToEl = (el) => {
     if (!el) return;
     el.scrollIntoView({ behavior: "smooth", block: "start" });
     el.classList.add("highlight-pulse");
@@ -116,7 +116,7 @@ export default function Home() {
     }, 800);
   }
 
-  async function handleCheckout(plan: string): Promise<void> {
+  async function handleCheckout(plan) {
     if (!nome || !email || !telefone || !cpf)
       return alert("Preencha nome, e-mail, WhatsApp e CPF antes de escolher um plano.");
     if (!validarCPF(cpf)) return alert("CPF inválido. Corrija antes de prosseguir.");
@@ -143,15 +143,10 @@ export default function Home() {
     <main className="min-h-screen bg-gray-50">
       {/* 🧭 Cabeçalho */}
       <section className="flex flex-col items-center text-center px-6 py-24 bg-gradient-to-r from-green-600 to-emerald-500 text-white relative">
-        <img
-          src="/og-image.jpg"
-          alt="PALPITES.IA — IA de palpites esportivos"
-          className="w-24 h-24 mb-4 rounded-full shadow-md border-2 border-white"
-        />
-        <h1 className="text-4xl md:text-5xl font-extrabold mb-6 drop-shadow-lg">
+        <h1 className="text-3xl md:text-4xl font-extrabold mb-6 drop-shadow-lg leading-snug">
           Receba palpites de Futebol e Basquete com precisão da IA PALPITES.IA ⚽🤖
           <br />
-          <span className="text-xl md:text-2xl font-medium mt-3 block text-emerald-100">
+          <span className="text-lg md:text-xl font-medium">
             IA exclusiva que analisa estatísticas oficiais, desempenho recente e probabilidades seguras — resultados com estratégia e confiança.
           </span>
         </h1>
@@ -170,9 +165,30 @@ export default function Home() {
           <input type="tel" placeholder="Confirme seu WhatsApp" value={telefoneConfirm} onChange={(e) => setTelefoneConfirm(formatarTelefone(e.target.value))} className="w-full p-3 border rounded-lg" required />
           <input type="text" placeholder="CPF (somente números)" value={cpf} onChange={(e) => setCpf(formatarCPF(e.target.value))} className="w-full p-3 border rounded-lg" required />
           <input type="text" placeholder="Confirme seu CPF" value={cpfConfirm} onChange={(e) => setCpfConfirm(formatarCPF(e.target.value))} className="w-full p-3 border rounded-lg" required />
+          <div className="pt-4 text-center">
+            <button
+              type="button"
+              onClick={scrollToPlanos}
+              disabled={loading}
+              className={`flex items-center justify-center gap-2 bg-green-600 text-white font-semibold py-3 px-6 rounded-full shadow-md transition duration-300 ease-in-out transform ${
+                pulse ? "scale-105 opacity-90 shadow-lg" : "scale-100 opacity-100"
+              } ${botaoClicado ? "bg-green-700 scale-95" : "hover:bg-green-700"} ${shake ? "animate-shake" : ""}`}
+            >
+              {loading ? (
+                <>
+                  <span className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></span>
+                  Salvando dados...
+                </>
+              ) : (
+                "Quero escolher meu plano 🔥"
+              )}
+            </button>
+          </div>
         </form>
       </section>
+
+      {/* 📲 Preview das mensagens (restante do seu código segue igual) */}
+      {/* ... */}
     </main>
   );
 }
-
