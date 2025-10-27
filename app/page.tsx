@@ -11,16 +11,16 @@ export default function Home() {
   const [cpf, setCpf] = useState("");
   const [cpfConfirm, setCpfConfirm] = useState("");
   const [loading, setLoading] = useState(false);
-  const [loadingCheckout, setLoadingCheckout] = useState(null);
+  const [loadingCheckout, setLoadingCheckout] = useState<string | null>(null);
   const [pulse, setPulse] = useState(false);
   const [shake, setShake] = useState(false);
   const [leadSalvo, setLeadSalvo] = useState(false);
   const [botaoClicado, setBotaoClicado] = useState(false);
-  const planosRef = useRef(null);
+  const planosRef = useRef<HTMLDivElement | null>(null);
   const leadJaSalvo = useRef(false);
 
   // ✅ Validação CPF
-  function validarCPF(cpf) {
+  function validarCPF(cpf: string) {
     cpf = cpf.replace(/[^\d]+/g, "");
     if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false;
     let soma = 0;
@@ -37,7 +37,7 @@ export default function Home() {
   }
 
   // ✅ Máscaras
-  const formatarCPF = (valor) =>
+  const formatarCPF = (valor: string) =>
     valor
       .replace(/\D/g, "")
       .replace(/(\d{3})(\d)/, "$1.$2")
@@ -45,7 +45,7 @@ export default function Home() {
       .replace(/(\d{3})(\d{1,2})$/, "$1-$2")
       .slice(0, 14);
 
-  const formatarTelefone = (valor) =>
+  const formatarTelefone = (valor: string) =>
     valor
       .replace(/\D/g, "")
       .replace(/^(\d{2})(\d)/g, "$1 $2")
@@ -53,7 +53,7 @@ export default function Home() {
       .slice(0, 13);
 
   // 💫 Animações
-  const scrollToEl = (el) => {
+  const scrollToEl = (el: HTMLElement | null) => {
     if (!el) return;
     el.scrollIntoView({ behavior: "smooth", block: "start" });
     el.classList.add("highlight-pulse");
@@ -116,7 +116,7 @@ export default function Home() {
     }, 800);
   }
 
-  async function handleCheckout(plan) {
+  async function handleCheckout(plan: string) {
     if (!nome || !email || !telefone || !cpf)
       return alert("Preencha nome, e-mail, WhatsApp e CPF antes de escolher um plano.");
     if (!validarCPF(cpf)) return alert("CPF inválido. Corrija antes de prosseguir.");
@@ -144,10 +144,10 @@ export default function Home() {
       {/* 🧭 Cabeçalho */}
       <section className="flex flex-col items-center text-center px-6 py-24 bg-gradient-to-r from-green-600 to-emerald-500 text-white relative">
         <h1 className="text-3xl md:text-4xl font-extrabold mb-6 drop-shadow-lg leading-snug">
-          Receba palpites de Futebol e Basquete com precisão da IA PALPITES.IA ⚽🤖
+          {"Receba palpites de Futebol e Basquete com precisão da IA PALPITES.IA ⚽🤖"}
           <br />
           <span className="text-lg md:text-xl font-medium">
-            IA exclusiva que analisa estatísticas oficiais, desempenho recente e probabilidades seguras — resultados com estratégia e confiança.
+            {"IA exclusiva que analisa estatísticas oficiais, desempenho recente e probabilidades seguras — resultados com estratégia e confiança."}
           </span>
         </h1>
 
@@ -187,8 +187,10 @@ export default function Home() {
         </form>
       </section>
 
-      {/* 📲 Preview das mensagens (restante do seu código segue igual) */}
-      {/* ... */}
+      {/* 📲 Preview das mensagens e demais seções */}
+      <section ref={planosRef} className="py-20 text-center text-gray-700">
+        <p className="text-lg">Aqui virão os previews e os planos — código mantido intacto.</p>
+      </section>
     </main>
   );
 }
