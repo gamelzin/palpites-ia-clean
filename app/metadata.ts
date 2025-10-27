@@ -1,21 +1,20 @@
-// app/metadata.ts
-
+// 🧠 SEO CONFIGURAÇÃO
 export const metadata = {
   title: "PALPITES.IA — Palpites Esportivos com Inteligência Artificial e Análise Estatística",
   description:
     "Receba palpites de Futebol e Basquete gerados por uma IA exclusiva da PALPITES.IA — baseada em estatísticas oficiais, desempenho recente e probabilidades seguras. Resultados com inteligência, estratégia e confiança.",
   openGraph: {
-    title: "PALPITES.IA — Palpites com Inteligência Artificial",
+    title: "PALPITES.IA — Inteligência, Estratégia e Performance em Palpites",
     description:
-      "Palpites precisos gerados por IA — análise estatística, performance e estratégia no Futebol e Basquete.",
+      "Análises automatizadas com base em estatísticas e IA avançada. Receba palpites seguros de Futebol e Basquete diretamente no seu WhatsApp.",
     url: "https://palpitesia.com.br",
     siteName: "PALPITES.IA",
     images: [
       {
-        url: "https://palpitesia.com.br/og-image.jpg",
+        url: "/og-image.jpg",
         width: 1200,
         height: 630,
-        alt: "PALPITES.IA — IA que analisa dados reais para palpites inteligentes",
+        alt: "PALPITES.IA — Palpites Esportivos Inteligentes",
       },
     ],
     locale: "pt_BR",
@@ -23,9 +22,9 @@ export const metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "PALPITES.IA — Palpites com IA e Estatísticas Reais",
+    title: "PALPITES.IA — Palpites Esportivos com Inteligência Artificial",
     description:
-      "Receba palpites inteligentes baseados em dados reais e probabilidades seguras da PALPITES.IA 💚",
-    images: ["https://palpitesia.com.br/og-image.jpg"],
+      "Análises baseadas em dados e desempenho real — receba palpites de Futebol e Basquete direto no WhatsApp.",
+    images: ["/og-image.jpg"],
   },
 };
