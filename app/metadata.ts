@@ -1,4 +1,4 @@
-// 🧠 SEO CONFIGURAÇÃO
+// SEO CONFIGURAÇÃO
 export const metadata = {
   title: "PALPITES.IA — Palpites Esportivos com Inteligência Artificial e Análise Estatística",
   description:
@@ -28,3 +28,4 @@ export const metadata = {
     images: ["/og-image.jpg"],
   },
 };
+
