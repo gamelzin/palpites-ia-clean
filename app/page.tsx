@@ -3,37 +3,6 @@
 import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 
-// 🧠 SEO CONFIGURAÇÃO
-export const metadata = {
-  title: "PALPITES.IA — Palpites Esportivos com Inteligência Artificial e Análise Estatística",
-  description:
-    "Receba palpites de Futebol e Basquete gerados por uma IA exclusiva da PALPITES.IA — baseada em estatísticas oficiais, desempenho recente e probabilidades seguras. Resultados com inteligência, estratégia e confiança.",
-  openGraph: {
-    title: "PALPITES.IA — IA que gera palpites com base em dados reais 📊",
-    description:
-      "Nossos palpites são criados por uma Inteligência Artificial exclusiva que analisa estatísticas, tendências e probabilidades reais para entregar resultados consistentes.",
-    url: "https://palpitesia.com.br",
-    siteName: "PALPITES.IA",
-    images: [
-      {
-        url: "https://palpitesia.com.br/og-image.jpg", // ✅ imagem OG padrão
-        width: 1200,
-        height: 630,
-        alt: "PALPITES.IA — IA de palpites esportivos",
-      },
-    ],
-    locale: "pt_BR",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "PALPITES.IA — Inteligência, estratégia e performance ⚽🤖",
-    description:
-      "Palpites gerados por IA com base em estatísticas oficiais e desempenho real. Futebol e Basquete no WhatsApp todos os dias!",
-    images: ["https://palpitesia.com.br/og-image.jpg"],
-  },
-};
-
 export default function Home() {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
@@ -147,7 +116,6 @@ export default function Home() {
     }, 800);
   }
 
-  // ✅ Correção de tipagem
   async function handleCheckout(plan: string): Promise<void> {
     if (!nome || !email || !telefone || !cpf)
       return alert("Preencha nome, e-mail, WhatsApp e CPF antes de escolher um plano.");
@@ -207,3 +175,4 @@ export default function Home() {
     </main>
   );
 }
+
