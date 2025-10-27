@@ -1,4 +1,7 @@
 import "./globals.css";
+import { Inter } from "next/font/google";
+
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
   title: "PALPITES.IA — Palpites Esportivos com Inteligência Artificial e Análise Estatística",
@@ -22,6 +25,14 @@ export const metadata = {
     type: "website",
   },
 };
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="pt-BR">
+      <body className={inter.className}>{children}</body>
+    </html>
+  );
+}
 
 
 
