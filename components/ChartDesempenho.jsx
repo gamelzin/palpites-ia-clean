@@ -12,7 +12,7 @@ export default function ChartDesempenho({ hits, draws, losses }) {
   return (
     <div className="rounded-2xl border border-neutral-800 bg-neutral-900/40 p-6 shadow">
       <h2 className="text-lg font-medium mb-4 text-neutral-200">
-        Desempenho dos Últimos 50 Picks
+        Desempenho dos Últimos 50 
       </h2>
       <div className="h-72">
         <ResponsiveContainer width="100%" height="100%">
