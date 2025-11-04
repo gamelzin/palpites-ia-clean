@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ajustes globais */
+html, body {
+  margin: 0;
+  padding: 0;
+  scroll-behavior: smooth;
+}
+
 body {
-  font-family: sans-serif;
+  background-color: #f9fafb; /* cinza-claro padrão */
+  color: #111827;            /* texto padrão */
+  font-family: system-ui, sans-serif;
 }

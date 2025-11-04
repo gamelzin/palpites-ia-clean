@@ -8,12 +8,15 @@
     "start": "next start"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.28.0",
+    "@supabase/supabase-js": "^2.75.0",
     "axios": "^1.12.2",
-    "next": "^13.5.11",
+    "dotenv": "^17.2.3",
+    "framer-motion": "^12.23.24",
+    "next": "^15.5.4",
     "node-fetch": "^3.3.2",
     "react": "18.2.0",
     "react-dom": "18.2.0",
+    "recharts": "^3.2.1",
     "stripe": "^19.0.0"
   },
   "devDependencies": {
@@ -21,7 +24,7 @@
     "@types/stripe": "^8.0.416",
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.6",
-    "tailwindcss": "3.4.13",
+    "tailwindcss": "^3.4.13",
     "typescript": "5.9.2"
   }
 }
