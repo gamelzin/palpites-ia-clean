@@ -25,7 +25,7 @@ function strip55AndZeros(v = "") {
 /* Gera variantes de sufixo para casar diferentes formatos */
 function suffixVariants(v = "") {
   const clean = onlyDigits(v);
-  const variants = new Set<string>();
+  const variants = new Set();
   const lens = [8, 9, 10, 11, 12];
 
   for (const L of lens) {
@@ -66,14 +66,17 @@ function getFromRoot(b) {
   try { return b?.messages?.[0]?.from || null; } catch {}
   return null;
 }
+
 function getTextRoot(b) {
   try { return b?.messages?.[0]?.text?.body || null; } catch {}
   return null;
 }
+
 function getFromEntry(b) {
   try { return b?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.from || null; } catch {}
   return null;
 }
+
 function getTextEntry(b) {
   try { return b?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]?.text?.body || null; } catch {}
   return null;
@@ -125,7 +128,7 @@ async function sendWhatsAppText(toRaw, message) {
   }
 }
 
-/* ---------- Webhook ---------- */
+/* ---------- Webhook principal ---------- */
 export async function POST(req) {
   const supabase = getSupabase();
 

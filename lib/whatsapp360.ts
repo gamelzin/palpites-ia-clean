@@ -1,36 +1,34 @@
-export async function sendWhatsApp(to: string, message: string) {
-  // Se não estiver explicitamente habilitado, não envia nada (evita side effects em build)
-  if (process.env.WHATSAPP_ENABLED !== "true") {
-    console.log("ℹ️ WhatsApp desabilitado (WHATSAPP_ENABLED != 'true'). Mensagem ignorada.");
-    return { success: false, skipped: true };
-  }
-
+export async function sendWhatsAppMessage(phone: string, message: string) {
   try {
-    const response = await fetch(process.env.WHATSAPP_API_URL!, {
+    const apiUrl = process.env.WHATSAPP_API_URL!;
+    const apiKey = process.env.WHATSAPP_API_KEY!;
+    const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID!;
+
+    const payload = {
+      recipient_type: "individual",
+      to: phone,
+      type: "text",
+      text: { body: message }
+    };
+
+    const res = await fetch(`${apiUrl}/v1/messages`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        "D360-API-KEY": process.env.WHATSAPP_API_KEY!,
+        "D360-API-KEY": apiKey,
+        "Content-Type": "application/json"
       },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        to,
-        type: "text",
-        text: { body: message },
-      }),
+      body: JSON.stringify(payload)
     });
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error("❌ Erro no envio:", data);
-      return { success: false, error: data };
+    if (!res.ok) {
+      const errorBody = await res.text();
+      console.error("Erro WhatsApp API:", errorBody);
+      throw new Error(`HTTP ${res.status}`);
     }
 
-    console.log("✅ Mensagem enviada com sucesso:", data);
-    return { success: true, data };
-  } catch (error) {
-    console.error("❌ Erro geral:", error);
-    return { success: false, error };
+    return true;
+  } catch (err) {
+    console.error("Erro ao enviar WhatsApp:", err);
+    return false;
   }
 }
