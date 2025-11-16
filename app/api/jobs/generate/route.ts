@@ -64,21 +64,43 @@ export async function GET() {
     const mensagemFinal =
       (textoPremium.choices?.[0]?.message?.content ?? "") as string;
 
-    // 👉 5. Salvar no Supabase
+    // 👉 5. Salvar no Supabase (com log detalhado)
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    await supabase.from("daily_picks").insert({
-      created_at: new Date().toISOString(),
-      texto: mensagemFinal,
-      jogos: jogosSelecionados
+    const { data, error } = await supabase
+      .from("daily_picks")
+      .insert({
+        created_at: new Date().toISOString(),
+        texto: mensagemFinal,
+        jogos: jogosSelecionados
+      })
+      .select();
+
+    console.log("🔍 DAILY PICKS INSERT RESULT:", { data, error });
+
+    if (error) {
+      return NextResponse.json({
+        ok: false,
+        supabaseError: error,
+        detalhe: "Erro no insert do Supabase"
+      });
+    }
+
+    return NextResponse.json({
+      ok: true,
+      inserted: data ?? null
     });
 
-    return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error("❌ Erro:", err);
-    return NextResponse.json({ ok: false, error: String(err) });
+    console.error("❌ Erro geral:", err);
+    return NextResponse.json({
+      ok: false,
+      error: String(err),
+      detalhe: "Erro geral no generate"
+    });
   }
 }
+
