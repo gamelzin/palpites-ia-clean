@@ -5,33 +5,106 @@ import { LIGAS_FUTEBOL_PRIORITARIAS } from "@/lib/ligas";
 import { createClient } from "@supabase/supabase-js";
 import OpenAI from "openai";
 
+/**
+ * Função robusta para extrair texto de message.content
+ * Lida com string, array de fragments, objetos OpenAI v2, etc.
+ */
+function extrairConteudoMensagem(message: any): string {
+  if (!message || message.content == null) return "";
+
+  const content = message.content;
+
+  // Caso mais comum → string pura
+  if (typeof content === "string") return content;
+
+  // Caso venha como array (fragments)
+  if (Array.isArray(content)) {
+    try {
+      return content
+        .map((parte: any) => {
+          if (!parte) return "";
+
+          // Caso seja string dentro do array
+          if (typeof parte === "string") return parte;
+
+          // Caso venha no formato { text: "..." }
+          if (typeof parte.text === "string") return parte.text;
+
+          // Formato { type: "text", text: { value: "..."} }
+          if (
+            parte.text &&
+            typeof parte.text === "object" &&
+            typeof parte.text.value === "string"
+          ) {
+            return parte.text.value;
+          }
+
+          return "";
+        })
+        .join(" ")
+        .trim();
+    } catch {
+      return "";
+    }
+  }
+
+  // Caso venha como objeto inesperado
+  if (typeof content === "object") {
+    try {
+      if (typeof content.text === "string") return content.text;
+      if (content.text && typeof content.text.value === "string")
+        return content.text.value;
+    } catch {
+      return "";
+    }
+  }
+
+  return "";
+}
+
 export async function GET() {
   try {
     const hoje = new Date().toISOString().slice(0, 10);
 
-    // 👉 1. Buscar jogos do dia
+    // 1) Buscar jogos de todas as ligas prioritárias
     const jogosS = await buscarJogosDoDia(LIGAS_FUTEBOL_PRIORITARIAS.S, hoje);
     const jogosA = await buscarJogosDoDia(LIGAS_FUTEBOL_PRIORITARIAS.A, hoje);
     const jogosB = await buscarJogosDoDia(LIGAS_FUTEBOL_PRIORITARIAS.B, hoje);
 
     const candidatosFutebol = [...jogosS, ...jogosA, ...jogosB];
 
-    // 👉 2. Enriquecer estatísticas básicas
-    for (const jogo of candidatosFutebol) {
-      jogo.estatisticas = await enriquecerEstatisticasFutebol(jogo.fixture.id);
+    console.log("📌 Jogos encontrados:", candidatosFutebol.length);
+
+    if (candidatosFutebol.length === 0) {
+      return NextResponse.json({
+        ok: false,
+        detalhe: "Nenhum jogo encontrado no dia",
+        jogos: []
+      });
     }
 
-    // 👉 3. Instância da OpenAI
-    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+    // 2) Enriquecer com estatísticas
+    for (const jogo of candidatosFutebol) {
+      try {
+        jogo.estatisticas = await enriquecerEstatisticasFutebol(jogo.fixture.id);
+      } catch (err) {
+        console.log("⚠ Erro ao buscar estatísticas para o jogo", jogo.fixture.id);
+        jogo.estatisticas = null;
+      }
+    }
 
-    // 👉 IA avalia qualidade dos jogos e devolve JSON (string)
-    const avaliacao = await client.chat.completions.create({
-      model: "gpt-4.1-mini",
+    // 3) OpenAI Client
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+
+    // 3.1) Seleção dos melhores jogos → JSON forçado
+    const avaliacao = await openai.chat.completions.create({
+      model: "gpt-4.1",
+      response_format: { type: "json_object" },
       messages: [
         {
           role: "system",
           content:
-            "Você é um analista estatístico profissional. Recebe uma lista de jogos com estatísticas e DEVE responder APENAS um JSON com os jogos selecionados para palpites, sem texto extra."
+            "Você é um analista de futebol. Recebe uma lista de jogos com estatísticas e deve selecionar SOMENTE os melhores jogos para palpites. Retorne EXCLUSIVAMENTE JSON no formato { \"jogos\": [...] }"
         },
         {
           role: "user",
@@ -40,19 +113,32 @@ export async function GET() {
       ]
     });
 
-    const conteudoAvaliacao =
-      (avaliacao.choices?.[0]?.message?.content ?? "") as string;
+    const rawAvaliacao = extrairConteudoMensagem(
+      avaliacao.choices?.[0]?.message
+    );
 
-    const jogosSelecionados = JSON.parse(conteudoAvaliacao);
+    console.log("📌 RAW avaliação IA:", rawAvaliacao);
 
-    // 👉 4. IA gera mensagem final Premium para envio
-    const textoPremium = await client.chat.completions.create({
-      model: "gpt-4.1-mini",
+    let jogosSelecionados: any[] = [];
+
+    try {
+      const parsed = JSON.parse(rawAvaliacao || "{}");
+      jogosSelecionados = parsed.jogos ?? [];
+    } catch (err) {
+      console.log("❌ Erro ao fazer JSON.parse da avaliação:", err);
+      jogosSelecionados = [];
+    }
+
+    console.log("📌 Jogos selecionados pela IA:", jogosSelecionados.length);
+
+    // 4) Mensagem premium final
+    const textoPremium = await openai.chat.completions.create({
+      model: "gpt-4.1",
       messages: [
         {
           role: "system",
           content:
-            "Você escreve mensagens premium de palpites de futebol no estilo PALPITES.IA, com tom profissional, com contexto dos jogos, palpites seguros, estendido (odd 2-3) e bingo corajoso (odd 5-10)."
+            "Você escreve análises premium estilo PALPITES.IA. Estrutura: contexto, análise, palpite seguro (odd 1.7-2.3), palpite estendido (odd 2.5-3.5), bingo corajoso (odd 5-10)."
         },
         {
           role: "user",
@@ -61,10 +147,13 @@ export async function GET() {
       ]
     });
 
-    const mensagemFinal =
-      (textoPremium.choices?.[0]?.message?.content ?? "") as string;
+    const mensagemFinal = extrairConteudoMensagem(
+      textoPremium.choices?.[0]?.message
+    );
 
-    // 👉 5. Salvar no Supabase (com log detalhado)
+    console.log("📌 Mensagem final produzida:", mensagemFinal);
+
+    // 5) Insert Supabase
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -74,32 +163,28 @@ export async function GET() {
       .from("daily_picks")
       .insert({
         created_at: new Date().toISOString(),
-        texto: mensagemFinal,
+        texto: mensagemFinal || "⚠ Falha ao gerar mensagem",
         jogos: jogosSelecionados
       })
       .select();
 
-    console.log("🔍 DAILY PICKS INSERT RESULT:", { data, error });
-
     if (error) {
+      console.log("❌ Erro Supabase:", error);
       return NextResponse.json({
         ok: false,
-        supabaseError: error,
-        detalhe: "Erro no insert do Supabase"
+        supabaseError: error
       });
     }
 
     return NextResponse.json({
       ok: true,
-      inserted: data ?? null
+      inserted: data
     });
-
   } catch (err) {
-    console.error("❌ Erro geral:", err);
+    console.error("❌ Erro geral /api/jobs/generate:", err);
     return NextResponse.json({
       ok: false,
-      error: String(err),
-      detalhe: "Erro geral no generate"
+      error: String(err)
     });
   }
 }
