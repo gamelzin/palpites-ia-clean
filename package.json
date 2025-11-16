@@ -2,16 +2,22 @@
   "name": "palpites-ia",
   "version": "1.2.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "enviar:futebol": "node ./scripts/enviarPalpitesDiarios.js futebol",
+    "enviar:combo": "node ./scripts/enviarPalpitesDiarios.js combo",
+    "enviar:teste": "node ./scripts/enviarPalpitesDiarios.js teste"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.28.0",
     "axios": "^1.12.2",
+    "dotenv": "^17.2.3",
     "next": "^13.5.11",
     "node-fetch": "^3.3.2",
+    "openai": "^6.9.0",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "stripe": "^19.0.0"
