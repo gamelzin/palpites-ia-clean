@@ -6,7 +6,6 @@ const API_KEY_WHATSAPP = process.env.WHATSAPP_API_KEY;
 const WHATSAPP_ENDPOINT =
   process.env.WHATSAPP_API_URL || "https://waba.360dialog.io/v1/messages";
 
-// seu número WABA
 const WABA_NUMBER = "+55 6195082702";
 
 function criarSupabaseServerClient() {
@@ -100,7 +99,11 @@ function montarRelatorioProfissional(jogosOntem: any[]): string {
   );
 }
 
-function montarMensagemWhatsApp(hojeStr: string, picks: string, relatorio: string) {
+function montarMensagemWhatsApp(
+  hojeStr: string,
+  picks: string,
+  relatorio: string
+) {
   return (
     `💎 PALPITES.IA PREMIUM (${hojeStr})\n\n` +
     `${picks.trim()}\n\n` +
@@ -110,9 +113,11 @@ function montarMensagemWhatsApp(hojeStr: string, picks: string, relatorio: strin
   );
 }
 
+/*  🔥🔥🔥 NOVA FUNÇÃO COMPLETA COM LOGS DETALHADOS 🔥🔥🔥 */
 async function enviarWhatsAppEmLote(numeros: string[], mensagem: string) {
   let enviados = 0;
   let erros = 0;
+  let firstErrorBody: string | null = null;
 
   for (const to of numeros) {
     try {
@@ -131,24 +136,38 @@ async function enviarWhatsAppEmLote(numeros: string[], mensagem: string) {
         body: JSON.stringify(body),
       });
 
+      const respostaTexto = await res.text().catch(() => "");
+
       if (!res.ok) {
         erros++;
+        console.log(
+          "❌ Erro ao enviar WhatsApp para:",
+          to,
+          "\nStatus:",
+          res.status,
+          "\nResposta:",
+          respostaTexto
+        );
+
+        if (!firstErrorBody) firstErrorBody = respostaTexto || `HTTP ${res.status}`;
       } else {
         enviados++;
       }
-    } catch {
+    } catch (err) {
       erros++;
+      const msg = String(err);
+      console.log("❌ Erro de rede ao enviar WhatsApp:", to, msg);
+      if (!firstErrorBody) firstErrorBody = msg;
     }
   }
 
-  return { enviados, erros };
+  return { enviados, erros, firstErrorBody };
 }
 
 export async function GET() {
   try {
     const supabase = criarSupabaseServerClient();
 
-    // pegar a pick de hoje
     const { data: picksHoje } = await supabase
       .from("daily_picks")
       .select("*")
@@ -164,7 +183,6 @@ export async function GET() {
     const hoje = new Date();
     const hojeStr = formatDateUTC(hoje);
 
-    // Ontem para relatório
     const ontem = new Date(hoje);
     ontem.setUTCDate(ontem.getUTCDate() - 1);
 
@@ -182,9 +200,12 @@ export async function GET() {
 
     const relatorio = montarRelatorioProfissional(jogosOntem);
 
-    const mensagem = montarMensagemWhatsApp(hojeStr, pickHoje.texto, relatorio);
+    const mensagem = montarMensagemWhatsApp(
+      hojeStr,
+      pickHoje.texto,
+      relatorio
+    );
 
-    // 🔥 CORREÇÃO CRÍTICA AQUI 🔥
     const { data: subscribers, error: subsError } = await supabase
       .from("subscribers")
       .select("whatsapp_number")
@@ -210,12 +231,14 @@ export async function GET() {
       });
     }
 
+    /* 🔥 Agora com erro detalhado */
     const envio = await enviarWhatsAppEmLote(numeros, mensagem);
 
     return NextResponse.json({
       ok: true,
       enviados: envio.enviados,
       erros: envio.erros,
+      erroExemploWhatsApp: envio.firstErrorBody ?? null,
       mensagemPreview: mensagem,
     });
   } catch (err) {
